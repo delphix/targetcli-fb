@@ -1,0 +1,49 @@
+From: Christophe Vu-Brugier <cvubrugier@fastmail.fm>
+Date: Mon, 22 Aug 2016 16:09:13 +0200
+Subject: Change the URL of the GitHub repo to the open-iscsi organization
+
+Signed-off-by: Christophe Vu-Brugier <cvubrugier@fastmail.fm>
+---
+ README.md   | 4 ++--
+ setup.py    | 2 +-
+ targetcli.8 | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/README.md b/README.md
+index 294c4f9..8f651df 100644
+--- a/README.md
++++ b/README.md
+@@ -13,8 +13,8 @@ targetcli-fb development
+ targetcli-fb is licensed under the Apache 2.0 license. Contributions are welcome.
+ 
+  * Mailing list: [targetcli-fb-devel](https://lists.fedorahosted.org/mailman/listinfo/targetcli-fb-devel)
+- * Source repo: [GitHub](https://github.com/agrover/targetcli-fb)
+- * Bugs: [GitHub](https://github.com/agrover/targetcli-fb/issues) or [Trac](https://fedorahosted.org/targetcli-fb/)
++ * Source repo: [GitHub](https://github.com/open-iscsi/targetcli-fb)
++ * Bugs: [GitHub](https://github.com/open-iscsi/targetcli-fb/issues) or [Trac](https://fedorahosted.org/targetcli-fb/)
+  * Tarballs: [fedorahosted](https://fedorahosted.org/releases/t/a/targetcli-fb/)
+  * Playlist of instructional screencast videos: [YouTube](https://www.youtube.com/playlist?list=PLC2C75481A3ABB067)
+ 
+diff --git a/setup.py b/setup.py
+index 052fb43..7b44304 100755
+--- a/setup.py
++++ b/setup.py
+@@ -28,7 +28,7 @@ setup(
+     license = 'Apache 2.0',
+     maintainer = 'Andy Grover',
+     maintainer_email = 'agrover@redhat.com',
+-    url = 'http://github.com/agrover/targetcli-fb',
++    url = 'http://github.com/open-iscsi/targetcli-fb',
+     packages = ['targetcli'],
+     scripts = ['scripts/targetcli'],
+     classifiers = [
+diff --git a/targetcli.8 b/targetcli.8
+index ae931be..7b131de 100644
+--- a/targetcli.8
++++ b/targetcli.8
+@@ -463,4 +463,4 @@ Man page written by Andy Grover <agrover@redhat.com>.
+ .SH REPORTING BUGS
+ Report bugs via <targetcli-fb-devel@lists.fedorahosted.org>
+ .br
+-or <https://github.com/agrover/targetcli-fb/issues>
++or <https://github.com/open-iscsi/targetcli-fb/issues>

@@ -1,0 +1,39 @@
+Source: targetcli-fb
+Section: admin
+Priority: optional
+Maintainer: Debian LIO Target Packagers <linux-target-packaging@lists.alioth.debian.org>
+Uploaders: Christophe Vu-Brugier <cvubrugier@fastmail.fm>,
+           Ritesh Raj Sarraf <rrs@debian.org>,
+           Christian Seiler <christian@iwakd.de>
+Build-Depends: debhelper (>= 9),
+               dh-python,
+               python3-all,
+               python3-configshell-fb,
+               python3-dbus,
+               python3-rtslib-fb,
+               python3-setuptools,
+               python3-six
+Standards-Version: 3.9.8
+Homepage: https://github.com/open-iscsi/targetcli-fb
+Vcs-Git: https://anonscm.debian.org/git/linux-target/targetcli-fb.git -b debian/master
+Vcs-Browser: https://anonscm.debian.org/cgit/linux-target/targetcli-fb.git
+
+Package: targetcli-fb
+Architecture: all
+Depends: ${misc:Depends},
+         ${python3:Depends},
+         python3-configshell-fb,
+         python3-dbus,
+         python3-rtslib-fb,
+         python3-six,
+Conflicts: targetcli, lio-utils
+Description: Command shell for managing the Linux LIO kernel target
+ The targetcli-fb package is a command-line interface for configuring
+ the LIO generic SCSI target, present in 3.x Linux kernel versions.
+ .
+ The targetcli-fb package is a fork of the "targetcli" code written by
+ RisingTide Systems. The "-fb" differentiates between the original and
+ this version. Please ensure to use either all "fb" versions of the
+ targetcli components -- targetcli, rtslib, and configshell, or stick
+ with all non-fb versions, since they are no longer strictly
+ compatible.

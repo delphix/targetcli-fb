@@ -1,0 +1,60 @@
+From: Christian Seiler <christian@iwakd.de>
+Date: Sun, 2 Oct 2016 19:14:17 +0200
+Subject: Use /etc/rtslib-fb-target instead of /etc/target
+
+Debian's python-rtslib-fb package changes /etc/target to
+/etc/rtslib-fb-target. Follow suite for now to make sure that targetcli
+is compatible with the startup logic in python-rtslib-fb and will work
+out of the box.
+---
+ targetcli.8          | 8 ++++----
+ targetcli/ui_root.py | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/targetcli.8 b/targetcli.8
+index 7b131de..3d2dccb 100644
+--- a/targetcli.8
++++ b/targetcli.8
+@@ -352,7 +352,7 @@ The LUN should now be accessible via FCoE.
+ Save the current configuration settings to a file, from which settings
+ will be restored if the system is rebooted. By default, this will save
+ the configuration to
+-.IR /etc/target/saveconfig.json .
++.IR /etc/rtslib-fb-target/saveconfig.json .
+ .P
+ This command is executed from the configuration root node.
+ .P
+@@ -412,7 +412,7 @@ existing ACLs; and
+ to change working path to newly-created nodes.  Global settings
+ are user-specific and are saved to ~/.targetcli/ upon exit, unlike
+ other groups, which are system-wide and kept in
+-.BR /etc/target/saveconfig.json .
++.BR /etc/rtslib-fb-target/saveconfig.json .
+ .SS BACKSTORE-SPECIFIC
+ .B attribute
+ .br
+@@ -450,9 +450,9 @@ to enforce or disable authentication for the full-feature phase
+ /iscsi/<target_iqn>/tpgX/acls/<initiator_iqn> configuration node. Set
+ the userid and password for full-feature phase for this ACL.
+ .SH FILES
+-.B /etc/target/saveconfig.json
++.B /etc/rtslib-fb-target/saveconfig.json
+ .br
+-.B /etc/target/backup/*
++.B /etc/rtslib-fb-target/backup/*
+ .SH SEE ALSO
+ .BR targetctl (8),
+ .BR tcmu-runner (8)
+diff --git a/targetcli/ui_root.py b/targetcli/ui_root.py
+index defdad0..438e7ef 100644
+--- a/targetcli/ui_root.py
++++ b/targetcli/ui_root.py
+@@ -31,7 +31,7 @@ from .ui_backstore import complete_path, UIBackstores
+ from .ui_node import UINode
+ from .ui_target import UIFabricModule
+ 
+-default_save_file = "/etc/target/saveconfig.json"
++default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
+ kept_backups = 10
+ 
+ class UIRoot(UINode):

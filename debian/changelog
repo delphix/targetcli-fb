@@ -1,0 +1,11 @@
+targetcli-fb (2.1.43-1) unstable; urgency=medium
+
+  [ Christophe Vu-Brugier ]
+  * Initial release. (Closes: #838862)
+
+  [ Christian Seiler ]
+  * [d18ada9] Use /etc/rtslib-fb-target instead of /etc/target for now
+  * [07822ce] debian/control: change maintainer to new LIO target
+    packaging mailing list
+
+ -- Christophe Vu-Brugier <cvubrugier@fastmail.fm>  Sat, 24 Sep 2016 21:41:56 +0200

@@ -1,0 +1,27 @@
+From: Andy Grover <agrover@redhat.com>
+Date: Wed, 10 Aug 2016 16:39:23 -0700
+Subject: Fix incorrect iqn format in manpage example
+
+Fixes #63
+
+Signed-off-by: Andy Grover <agrover@redhat.com>
+---
+ targetcli.8 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/targetcli.8 b/targetcli.8
+index fed6569..ae931be 100644
+--- a/targetcli.8
++++ b/targetcli.8
+@@ -53,9 +53,9 @@ $ sudo targetcli
+ .br
+ /> backstores/fileio create test /tmp/test.img 100m
+ .br
+-/> iscsi/ create iqn.2006-04.example.com:test-target
++/> iscsi/ create iqn.2006-04.com.example:test-target
+ .br
+-/> cd iscsi/iqn.2006-04.example.com:test-target/tpg1/
++/> cd iscsi/iqn.2006-04.com.example:test-target/tpg1/
+ .br
+ tpg1/> luns/ create /backstores/fileio/test
+ .br

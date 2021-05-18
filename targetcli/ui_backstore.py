@@ -17,33 +17,56 @@ License for the specific language governing permissions and limitations
 under the License.
 '''
 
+from gi.repository import Gio
 import glob
 import os
+import fcntl
+import array
+import struct
 import re
 import stat
-import dbus
 
 from configshell_fb import ExecutionError
 from rtslib_fb import BlockStorageObject, FileIOStorageObject
 from rtslib_fb import PSCSIStorageObject, RDMCPStorageObject, UserBackedStorageObject
+from rtslib_fb import ALUATargetPortGroup
 from rtslib_fb import RTSLibError
 from rtslib_fb import RTSRoot
 from rtslib_fb.utils import get_block_type
 
 from .ui_node import UINode, UIRTSLibNode
 
+default_save_file = "/etc/target/saveconfig.json"
+
+alua_rw_params = ['alua_access_state', 'alua_access_status',
+                  'alua_write_metadata', 'alua_access_type', 'preferred',
+                  'nonop_delay_msecs', 'trans_delay_msecs',
+                  'implicit_trans_secs', 'alua_support_offline',
+                  'alua_support_standby', 'alua_support_transitioning',
+                  'alua_support_active_nonoptimized',
+                  'alua_support_unavailable', 'alua_support_active_optimized']
+alua_ro_params = ['tg_pt_gp_id', 'members', 'alua_support_lba_dependent']
+
+alua_state_names = { 0: 'Active/optimized',
+                     1: 'Active/non-optimized',
+                     2: 'Standby',
+                     3: 'Unavailable',
+                     4: 'LBA Dependent',
+                     14: 'Offline',
+                     15: 'Transitioning'}
+
 def human_to_bytes(hsize, kilo=1024):
     '''
     This function converts human-readable amounts of bytes to bytes.
     It understands the following units :
-        - I{B} or no unit present for Bytes
-        - I{k}, I{K}, I{kB}, I{KB} for kB (kilobytes)
-        - I{m}, I{M}, I{mB}, I{MB} for MB (megabytes)
-        - I{g}, I{G}, I{gB}, I{GB} for GB (gigabytes)
-        - I{t}, I{T}, I{tB}, I{TB} for TB (terabytes)
+        - B or no unit present for Bytes
+        - k, K, kB, KB for kB (kilobytes)
+        - m, M, mB, MB for MB (megabytes)
+        - g, G, gB, GB for GB (gigabytes)
+        - t, T, tB, TB for TB (terabytes)
 
-    Note: The definition of I{kilo} defaults to 1kB = 1024Bytes.
-    Strictly speaking, those should not be called I{kB} but I{kiB}.
+    Note: The definition of kilo defaults to 1kB = 1024Bytes.
+    Strictly speaking, those should not be called "kB" but "kiB".
     You can override that with the optional kilo parameter.
 
     @param hsize: The human-readable version of the Bytes amount to convert
@@ -96,6 +119,108 @@ def complete_path(path, stat_fn):
     return sorted(filtered,
                   key=lambda s: '~'+s if s.endswith('/') else s)
 
+
+class UIALUATargetPortGroup(UIRTSLibNode):
+    '''
+    A generic UI for ALUATargetPortGroup objects.
+    '''
+    def __init__(self, alua_tpg, parent):
+        name = alua_tpg.name
+        super(UIALUATargetPortGroup, self).__init__(name, alua_tpg, parent)
+        self.refresh()
+
+        for param in alua_rw_params:
+            self.define_config_group_param("alua", param, 'string')
+
+        for param in alua_ro_params:
+            self.define_config_group_param("alua", param, 'string', writable=False)
+
+    def ui_getgroup_alua(self, alua_attr):
+        return getattr(self.rtsnode, alua_attr)
+
+    def ui_setgroup_alua(self, alua_attr, value):
+        self.assert_root()
+
+        if value is None:
+            return
+
+        setattr(self.rtsnode, alua_attr, value)
+
+    def summary(self):
+        self.rtsnode.alua_access_state
+        return ("ALUA state: %s" %
+                alua_state_names[self.rtsnode.alua_access_state], True)
+
+class UIALUATargetPortGroups(UINode):
+    '''
+    ALUA Target Port Group UI
+    '''
+    def __init__(self, parent):
+        super(UIALUATargetPortGroups, self).__init__("alua", parent)
+        self.refresh()
+
+    def summary(self):
+        return ("ALUA Groups: %d" % len(self.children), None)
+
+    def refresh(self):
+        self._children = set([])
+
+        so = self.parent.rtsnode
+        for tpg in so.alua_tpgs:
+            UIALUATargetPortGroup(tpg, self)
+
+    def ui_command_create(self, name, tag):
+        '''
+        Create a new ALUA Target Port Group attached to a storage object.
+        '''
+        self.assert_root()
+
+        so = self.parent.rtsnode
+        alua_tpg_object = ALUATargetPortGroup(so, name, int(tag))
+        self.shell.log.info("Created ALUA TPG %s." % alua_tpg_object.name)
+        ui_alua_tpg = UIALUATargetPortGroup(alua_tpg_object, self)
+        return self.new_node(ui_alua_tpg)
+
+    def ui_command_delete(self, name):
+        '''
+        Delete the ALUA Target Por Group and unmap it from a LUN if needed.
+        '''
+        self.assert_root()
+
+        so = self.parent.rtsnode
+        try:
+            alua_tpg_object = ALUATargetPortGroup(so, name)
+        except:
+            raise RTSLibError("Invalid ALUA group name")
+
+        alua_tpg_object.delete()
+        self.refresh()
+
+    def ui_complete_delete(self, parameters, text, current_param):
+        '''
+        Parameter auto-completion method for user command delete.
+        @param parameters: Parameters on the command line.
+        @type parameters: dict
+        @param text: Current text of parameter being typed by the user.
+        @type text: str
+        @param current_param: Name of parameter to complete.
+        @type current_param: str
+        @return: Possible completions
+        @rtype: list of str
+        '''
+        if current_param == 'name':
+            so = self.parent.rtsnode
+
+            tpgs = [tpg.name for tpg in so.alua_tpgs]
+            completions = [tpg for tpg in tpgs if tpg.startswith(text)]
+        else:
+            completions = []
+
+        if len(completions) == 1:
+            return [completions[0] + ' ']
+        else:
+            return completions
+
 class UIBackstores(UINode):
     '''
     The backstores container UI.
@@ -109,16 +234,26 @@ class UIBackstores(UINode):
         tcmu-runner (or other daemon providing the same service) exposes a
         DBus ObjectManager-based iface to find handlers it supports.
         '''
-        bus = dbus.SystemBus()
+        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
         try:
-            mgr_obj = bus.get_object('org.kernel.TCMUService1', '/org/kernel/TCMUService1')
-            mgr_iface = dbus.Interface(mgr_obj, 'org.freedesktop.DBus.ObjectManager')
+            mgr_iface = Gio.DBusProxy.new_sync(bus,
+                                               Gio.DBusProxyFlags.NONE,
+                                               None,
+                                               'org.kernel.TCMUService1',
+                                               '/org/kernel/TCMUService1',
+                                               'org.freedesktop.DBus.ObjectManager',
+                                               None)
 
-            for k,v in mgr_iface.GetManagedObjects().items():
-                tcmu_obj = bus.get_object('org.kernel.TCMUService1', k)
-                tcmu_iface = dbus.Interface(tcmu_obj, dbus_interface='org.kernel.TCMUService1')
+            for k, v in mgr_iface.GetManagedObjects().items():
+                tcmu_iface = Gio.DBusProxy.new_sync(bus,
+                                                    Gio.DBusProxyFlags.NONE,
+                                                    None,
+                                                    'org.kernel.TCMUService1',
+                                                    k,
+                                                    'org.kernel.TCMUService1',
+                                                    None)
                 yield (k[k.rfind("/")+1:], tcmu_iface, v)
-        except dbus.DBusException as e:
+        except Exception as e:
             return
 
     def refresh(self):
@@ -149,15 +284,15 @@ class UIBackstore(UINode):
     def summary(self):
         return ("Storage Objects: %d" % len(self._children), None)
 
-    def ui_command_delete(self, name):
+    def ui_command_delete(self, name, save=None):
         '''
-        Recursively deletes the storage object having the specified I{name}. If
+        Recursively deletes the storage object having the specified name. If
         there are LUNs using this storage object, they will be deleted too.
 
         EXAMPLE
         =======
-        B{delete mystorage}
-        -------------------
+        delete mystorage
+        ----------------
         Deletes the storage object named mystorage, and all associated LUNs.
         '''
         self.assert_root()
@@ -166,7 +301,12 @@ class UIBackstore(UINode):
         except ValueError:
             raise ExecutionError("No storage object named %s." % name)
 
-        child.rtsnode.delete()
+        save = self.ui_eval_param(save, 'bool', False)
+        if save:
+            rn = self.get_root()
+            rn._save_backups(default_save_file)
+
+        child.rtsnode.delete(save=save)
         self.remove_child(child)
         self.shell.log.info("Deleted storage object %s." % name)
 
@@ -214,7 +354,7 @@ class UIPSCSIBackstore(UIBackstore):
     def ui_command_create(self, name, dev):
         '''
         Creates a PSCSI storage object, with supplied name and SCSI device. The
-        SCSI device I{dev} can either be a path name to the device, in which
+        SCSI device "dev" can either be a path name to the device, in which
         case it is recommended to use the /dev/disk/by-id hierarchy to have
         consistent naming should your physical SCSI system be modified, or an
         SCSI device ID in the H:C:T:L format, which is not recommended as SCSI
@@ -243,17 +383,17 @@ class UIRDMCPBackstore(UIBackstore):
 
     def ui_command_create(self, name, size, nullio=None, wwn=None):
         '''
-        Creates an RDMCP storage object. I{size} is the size of the ramdisk.
+        Creates an RDMCP storage object. "size" is the size of the ramdisk.
 
         SIZE SYNTAX
         ===========
         - If size is an int, it represents a number of bytes.
         - If size is a string, the following units can be used:
-            - B{B} or no unit present for bytes
-            - B{k}, B{K}, B{kB}, B{KB} for kB (kilobytes)
-            - B{m}, B{M}, B{mB}, B{MB} for MB (megabytes)
-            - B{g}, B{G}, B{gB}, B{GB} for GB (gigabytes)
-            - B{t}, B{T}, B{tB}, B{TB} for TB (terabytes)
+            - B or no unit present for bytes
+            - k, K, kB, KB for kB (kilobytes)
+            - m, M, mB, MB for MB (megabytes)
+            - g, G, gB, GB for GB (gigabytes)
+            - t, T, tB, TB for TB (terabytes)
         '''
         self.assert_root()
 
@@ -305,14 +445,14 @@ class UIFileIOBackstore(UIBackstore):
     def ui_command_create(self, name, file_or_dev, size=None, write_back=None,
                           sparse=None, wwn=None):
         '''
-        Creates a FileIO storage object. If I{file_or_dev} is a path
-        to a regular file to be used as backend, then the I{size}
-        parameter is mandatory. Else, if I{file_or_dev} is a path to a
-        block device, the size parameter B{must} be ommited. If
-        present, I{size} is the size of the file to be used, I{file}
-        the path to the file or I{dev} the path to a block device. The
-        I{write_back} parameter is a boolean controlling write
-        caching. It is enabled by default. The I{sparse} parameter is
+        Creates a FileIO storage object. If "file_or_dev" is a path
+        to a regular file to be used as backend, then the "size"
+        parameter is mandatory. Else, if "file_or_dev" is a path to a
+        block device, the size parameter must be omitted. If
+        present, "size" is the size of the file to be used, "file"
+        the path to the file or "dev" the path to a block device. The
+        "write_back" parameter is a boolean controlling write
+        caching. It is enabled by default. The "sparse" parameter is
         only applicable when creating a new backing file. It is a
         boolean stating if the created file should be created as a
         sparse file (the default), or fully initialized.
@@ -321,11 +461,11 @@ class UIFileIOBackstore(UIBackstore):
         ===========
         - If size is an int, it represents a number of bytes.
         - If size is a string, the following units can be used:
-            - B{B} or no unit present for bytes
-            - B{k}, B{K}, B{kB}, B{KB} for kB (kilobytes)
-            - B{m}, B{M}, B{mB}, B{MB} for MB (megabytes)
-            - B{g}, B{G}, B{gB}, B{GB} for GB (gigabytes)
-            - B{t}, B{T}, B{tB}, B{TB} for TB (terabytes)
+            - B or no unit present for bytes
+            - k, K, kB, KB for kB (kilobytes)
+            - m, M, mB, MB for MB (megabytes)
+            - g, G, gB, GB for GB (gigabytes)
+            - t, T, tB, TB for TB (terabytes)
         '''
         self.assert_root()
 
@@ -396,14 +536,39 @@ class UIBlockBackstore(UIBackstore):
         self.so_cls = UIBlockStorageObject
         UIBackstore.__init__(self, 'block', parent)
 
+    def _ui_block_ro_check(self, dev):
+        BLKROGET=0x0000125E
+        try:
+            f = os.open(dev, os.O_RDONLY)
+        except (OSError, IOError):
+            raise ExecutionError("Could not open %s" % dev)
+        # ioctl returns an int. Provision a buffer for it
+        buf = array.array('b', [0] * 4)
+        try:
+            fcntl.ioctl(f, BLKROGET, buf)
+        except (OSError, IOError):
+            os.close(f)
+            return False
+
+        os.close(f)
+        if struct.unpack('I', buf)[0] == 0:
+            return False
+        return True
+
     def ui_command_create(self, name, dev, readonly=None, wwn=None):
         '''
-        Creates an Block Storage object. I{dev} is the path to the TYPE_DISK
+        Creates an Block Storage object. "dev" is the path to the TYPE_DISK
         block device to use.
         '''
         self.assert_root()
 
-        readonly = self.ui_eval_param(readonly, 'bool', False)
+        ro_string = self.ui_eval_param(readonly, 'string', None)
+        if ro_string == None:
+            # attempt to detect block device readonly state via ioctl
+            readonly = self._ui_block_ro_check(dev)
+        else:
+            readonly = self.ui_eval_param(readonly, 'bool', False)
+
         wwn = self.ui_eval_param(wwn, 'string', None)
 
         so = BlockStorageObject(name, dev, readonly=readonly, wwn=wwn)
@@ -439,7 +604,7 @@ class UIUserBackedBackstore(UIBackstore):
     def refresh(self):
         self._children = set([])
         for so in RTSRoot().storage_objects:
-            if so.plugin == 'user':
+            if so.plugin == 'user' and so.config:
                 idx = so.config.find("/")
                 handler = so.config[:idx]
                 if handler == self.handler:
@@ -454,7 +619,8 @@ class UIUserBackedBackstore(UIBackstore):
             print(x.get("ConfigDesc", "No description."))
             print()
 
-    def ui_command_create(self, name, size, cfgstring, wwn=None):
+    def ui_command_create(self, name, size, cfgstring, wwn=None,
+                          hw_max_sectors=None, control=None):
         '''
         Creates a User-backed storage object.
 
@@ -462,11 +628,11 @@ class UIUserBackedBackstore(UIBackstore):
         ===========
         - If size is an int, it represents a number of bytes.
         - If size is a string, the following units can be used:
-            - B{B} or no unit present for bytes
-            - B{k}, B{K}, B{kB}, B{KB} for kB (kilobytes)
-            - B{m}, B{M}, B{mB}, B{MB} for MB (megabytes)
-            - B{g}, B{G}, B{gB}, B{GB} for GB (gigabytes)
-            - B{t}, B{T}, B{tB}, B{TB} for TB (terabytes)
+            - B or no unit present for bytes
+            - k, K, kB, KB for kB (kilobytes)
+            - m, M, mB, MB for MB (megabytes)
+            - g, G, gB, GB for GB (gigabytes)
+            - t, T, tB, TB for TB (terabytes)
         '''
 
         size = human_to_bytes(size)
@@ -474,16 +640,35 @@ class UIUserBackedBackstore(UIBackstore):
 
         config = self.handler + "/" + cfgstring
 
-        ok, errmsg = self.iface.CheckConfig(config)
+        ok, errmsg = self.iface.CheckConfig('(s)', config)
         if not ok:
             raise ExecutionError("cfgstring invalid: %s" % errmsg)
 
-        so = UserBackedStorageObject(name, size=size, config=config, wwn=wwn)
+        try:
+            so = UserBackedStorageObject(name, size=size, config=config,
+                                         wwn=wwn, hw_max_sectors=hw_max_sectors,
+                                         control=control)
+        except:
+            raise ExecutionError("UserBackedStorageObject creation failed.")
+
         ui_so = UIUserBackedStorageObject(so, self)
         self.shell.log.info("Created user-backed storage object %s size %d."
                             % (name, size))
         return self.new_node(ui_so)
 
+    def ui_command_changemedium(self, name, size, cfgstring):
+        size = human_to_bytes(size)
+        config = self.handler + "/" + cfgstring
+
+        try:
+            rc, errmsg = self.iface.ChangeMedium('(sts)', name, size, config)
+        except Exception as e:
+            raise ExecutionError("ChangeMedium failed: %s" % e)
+        else:
+            if rc == 0:
+                self.shell.log.info("Medium Changed.")
+            else:
+                raise ExecutionError("ChangeMedium failed: %s" % errmsg)
 
 class UIStorageObject(UIRTSLibNode):
     '''
@@ -504,11 +689,13 @@ class UIStorageObject(UIRTSLibNode):
         'emulate_tpws': ('number', 'If set to 1, enable Thin Provisioning Write Same.'),
         'emulate_ua_intlck_ctrl': ('number', 'If set to 1, enable Unit Attention Interlock.'),
         'emulate_write_cache': ('number', 'If set to 1, turn on Write Cache Enable.'),
+        'emulate_pr': ('number', 'If set to 1, enable SCSI Reservations.'),
         'enforce_pr_isids': ('number', 'If set to 1, enforce persistent reservation ISIDs.'),
         'force_pr_aptpl': ('number', 'If set to 1, force SPC-3 PR Activate Persistence across Target Power Loss operation.'),
         'fabric_max_sectors': ('number', 'Maximum number of sectors the fabric can transfer at once.'),
         'hw_block_size': ('number', 'Hardware block size in bytes.'),
         'hw_max_sectors': ('number', 'Maximum number of sectors the hardware can transfer at once.'),
+        'control': ('string', 'Comma separated string of control=value tuples that will be passed to kernel control file.'),
         'hw_pi_prot_type': ('number', 'If non-zero, DIF protection is enabled on the underlying hardware.'),
         'hw_queue_depth': ('number', 'Hardware queue depth.'),
         'is_nonrot': ('number', 'If set to 1, the backstore is a non rotational device.'),
@@ -529,12 +716,34 @@ class UIStorageObject(UIRTSLibNode):
         UIRTSLibNode.__init__(self, name, storage_object, parent)
         self.refresh()
 
+        UIALUATargetPortGroups(self)
+
     def ui_command_version(self):
         '''
         Displays the version of the current backstore's plugin.
         '''
         self.shell.con.display("Backstore plugin %s %s"
                                % (self.rtsnode.plugin, self.rtsnode.version))
+
+    def ui_command_saveconfig(self, savefile=None):
+        '''
+        Save configuration of this StorageObject.
+        '''
+        so = self.rtsnode
+        rn = self.get_root()
+
+        if not savefile:
+            savefile = default_save_file
+
+        savefile = os.path.expanduser(savefile)
+
+        rn._save_backups(savefile)
+
+        rn.rtsroot.save_to_file(savefile,
+                                '/backstores/' + so.plugin  + '/' + so.name)
+
+        self.shell.log.info("Storage Object '%s:%s' config saved to %s."
+                            % (so.plugin, so.name, savefile))
 
 
 class UIPSCSIStorageObject(UIStorageObject):

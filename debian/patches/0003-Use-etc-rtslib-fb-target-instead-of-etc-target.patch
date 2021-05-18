@@ -8,14 +8,12 @@ is compatible with the startup logic in python-rtslib-fb and will work
 out of the box.
 ---
  targetcli.8          | 8 ++++----
- targetcli/ui_root.py | 2 +-
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ targetcli/ui_root.py | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/targetcli.8 b/targetcli.8
-index 7b131de..3d2dccb 100644
 --- a/targetcli.8
 +++ b/targetcli.8
-@@ -352,7 +352,7 @@ The LUN should now be accessible via FCoE.
+@@ -360,7 +360,7 @@
  Save the current configuration settings to a file, from which settings
  will be restored if the system is rebooted. By default, this will save
  the configuration to
@@ -24,7 +22,7 @@ index 7b131de..3d2dccb 100644
  .P
  This command is executed from the configuration root node.
  .P
-@@ -412,7 +412,7 @@ existing ACLs; and
+@@ -420,7 +420,7 @@
  to change working path to newly-created nodes.  Global settings
  are user-specific and are saved to ~/.targetcli/ upon exit, unlike
  other groups, which are system-wide and kept in
@@ -33,7 +31,7 @@ index 7b131de..3d2dccb 100644
  .SS BACKSTORE-SPECIFIC
  .B attribute
  .br
-@@ -450,9 +450,9 @@ to enforce or disable authentication for the full-feature phase
+@@ -458,9 +458,9 @@
  /iscsi/<target_iqn>/tpgX/acls/<initiator_iqn> configuration node. Set
  the userid and password for full-feature phase for this ACL.
  .SH FILES
@@ -42,19 +40,19 @@ index 7b131de..3d2dccb 100644
  .br
 -.B /etc/target/backup/*
 +.B /etc/rtslib-fb-target/backup/*
- .SH SEE ALSO
- .BR targetctl (8),
- .BR tcmu-runner (8)
-diff --git a/targetcli/ui_root.py b/targetcli/ui_root.py
-index defdad0..438e7ef 100644
+ .SH ENVIRONMENT
+ .SS TARGETCLI_HOME
+ If set, this variable points to a directory that should be used instead of ~/.targetcli
 --- a/targetcli/ui_root.py
 +++ b/targetcli/ui_root.py
-@@ -31,7 +31,7 @@ from .ui_backstore import complete_path, UIBackstores
+@@ -34,8 +34,8 @@
  from .ui_node import UINode
  from .ui_target import UIFabricModule
  
 -default_save_file = "/etc/target/saveconfig.json"
+-universal_prefs_file = "/etc/target/targetcli.conf"
 +default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
- kept_backups = 10
++universal_prefs_file = "/etc/rtslib-fb-target/targetcli.conf"
  
  class UIRoot(UINode):
+     '''

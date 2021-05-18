@@ -2,3 +2,14 @@
 
 %:
 	dh $@ --with python3 -Spybuild
+
+override_dh_installsystemd:
+	# helper for the cli, not an individual entity, keeping it within main pkg
+	dh_installsystemd -ptargetcli-fb --name=targetclid --no-restart-on-upgrade --no-start targetclid.service
+	dh_installsystemd -ptargetcli-fb --name=targetclid --no-restart-on-upgrade targetclid.socket
+
+override_dh_install:
+	# not (yet) installed by upstream but required
+	cp -v systemd/targetclid.service debian/targetcli-fb.targetclid.service
+	cp -v systemd/targetclid.socket debian/targetcli-fb.targetclid.socket
+	dh_install

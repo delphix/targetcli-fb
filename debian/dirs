@@ -1,0 +1,3 @@
+# Ship backup directory for old configurations, as that will not be
+# created automatically.
+/etc/rtslib-fb-target/backup

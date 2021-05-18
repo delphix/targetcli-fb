@@ -20,8 +20,11 @@ under the License.
 from datetime import datetime
 from glob import glob
 import os
+import re
 import shutil
 import stat
+import filecmp
+import gzip
 
 from configshell_fb import ExecutionError
 from rtslib_fb import RTSRoot
@@ -32,7 +35,7 @@ from .ui_node import UINode
 from .ui_target import UIFabricModule
 
 default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
-kept_backups = 10
+universal_prefs_file = "/etc/rtslib-fb-target/targetcli.conf"
 
 class UIRoot(UINode):
     '''
@@ -49,12 +52,108 @@ class UIRoot(UINode):
         '''
         self._children = set([])
 
+        # Invalidate any rtslib caches
+        if 'invalidate_caches' in dir(RTSRoot):
+            self.rtsroot.invalidate_caches()
+
         UIBackstores(self)
 
         # only show fabrics present in the system
         for fm in self.rtsroot.fabric_modules:
             if fm.wwns == None or any(fm.wwns):
                 UIFabricModule(fm, self)
+
+    def _compare_files(self, backupfile, savefile):
+        '''
+        Compare backfile and saveconfig file
+        '''
+        if (os.path.splitext(backupfile)[1] == '.gz'):
+            try:
+                with gzip.open(backupfile, 'rb') as fbkp:
+                    fdata_bkp = fbkp.read()
+            except IOError as e:
+                self.shell.log.warning("Could not gzip open backupfile %s: %s"
+                                       % (backupfile, e.strerror))
+
+        else:
+            try:
+                with open(backupfile, 'rb') as fbkp:
+                    fdata_bkp = fbkp.read()
+            except IOError as e:
+                self.shell.log.warning("Could not open backupfile %s: %s"
+                                       % (backupfile, e.strerror))
+
+        try:
+            with open(savefile, 'rb') as f:
+                fdata = f.read()
+        except IOError as e:
+            self.shell.log.warning("Could not open saveconfig file %s: %s"
+                                   % (savefile, e.strerror))
+
+        if fdata_bkp == fdata:
+            return True
+        else:
+            return False
+
+    def _save_backups(self, savefile):
+        '''
+        Take backup of config-file if needed.
+        '''
+        # Only save backups if saving to default location
+        if savefile != default_save_file:
+            return
+
+        backup_dir = os.path.dirname(savefile) + "/backup/"
+        backup_name = "saveconfig-" + \
+                      datetime.now().strftime("%Y%m%d-%H:%M:%S") + "-json.gz"
+        backupfile = backup_dir + backup_name
+        backup_error = None
+
+        if not os.path.exists(backup_dir):
+            try:
+                os.makedirs(backup_dir)
+            except OSError as exe:
+                raise ExecutionError("Cannot create backup directory [%s] %s."
+                                     % (backup_dir, exe.strerror))
+
+        # Only save backups if savefile exits
+        if not os.path.exists(savefile):
+            return
+
+        backed_files_list = sorted(glob(os.path.dirname(savefile) + \
+                                   "/backup/saveconfig-*json*"))
+
+        # Save backup if backup dir is empty, or savefile is differnt from recent backup copy
+        if not backed_files_list or not self._compare_files(backed_files_list[-1], savefile):
+            try:
+                with open(savefile, 'rb') as f_in, gzip.open(backupfile, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    f_out.flush()
+            except IOError as ioe:
+                backup_error = ioe.strerror or "Unknown error"
+
+            if backup_error == None:
+                # remove excess backups
+                max_backup_files = int(self.shell.prefs['max_backup_files'])
+
+                try:
+                    with open(universal_prefs_file) as prefs:
+                        backups = [line for line in prefs.read().splitlines() if re.match('^max_backup_files\s*=', line)]
+                        if max_backup_files < int(backups[0].split('=')[1].strip()):
+                            max_backup_files = int(backups[0].split('=')[1].strip())
+                except:
+                    self.shell.log.debug("No universal prefs file '%s'." % universal_prefs_file)
+
+                files_to_unlink = list(reversed(backed_files_list))[max_backup_files - 1:]
+                for f in files_to_unlink:
+                    with ignored(IOError):
+                        os.unlink(f)
+
+                self.shell.log.info("Last %d configs saved in %s."
+                                    % (max_backup_files, backup_dir))
+            else:
+                self.shell.log.warning("Could not create backup file %s: %s."
+                                       % (backupfile, backup_error))
 
     def ui_command_saveconfig(self, savefile=default_save_file):
         '''
@@ -63,31 +162,19 @@ class UIRoot(UINode):
         '''
         self.assert_root()
 
+        if not savefile:
+            savefile = default_save_file
+
         savefile = os.path.expanduser(savefile)
 
-        # Only save backups if saving to default location
-        if savefile == default_save_file:
-            backup_dir = os.path.dirname(savefile) + "/backup"
-            backup_name = "saveconfig-" + \
-                datetime.now().strftime("%Y%m%d-%H:%M:%S") + ".json"
-            backupfile = backup_dir + "/" + backup_name
-            with ignored(IOError):
-                shutil.copy(savefile, backupfile)
-
-            # Kill excess backups
-            backups = sorted(glob(os.path.dirname(savefile) + "/backup/*.json"))
-            files_to_unlink = list(reversed(backups))[kept_backups:]
-            for f in files_to_unlink:
-                os.unlink(f)
-
-            self.shell.log.info("Last %d configs saved in %s." % \
-                                    (kept_backups, backup_dir))
+        self._save_backups(savefile)
 
         self.rtsroot.save_to_file(savefile)
 
         self.shell.log.info("Configuration saved to %s" % savefile)
 
-    def ui_command_restoreconfig(self, savefile=default_save_file, clear_existing=False):
+    def ui_command_restoreconfig(self, savefile=default_save_file, clear_existing=False,
+                                 target=None, storage_object=None):
         '''
         Restores configuration from a file.
         '''
@@ -99,7 +186,10 @@ class UIRoot(UINode):
             self.shell.log.info("Restore file %s not found" % savefile)
             return
 
-        errors = self.rtsroot.restore_from_file(savefile, clear_existing)
+        target = self.ui_eval_param(target, 'string', None)
+        storage_object = self.ui_eval_param(storage_object, 'string', None)
+        errors = self.rtsroot.restore_from_file(savefile, clear_existing,
+                                                target, storage_object)
 
         self.refresh()
 
@@ -150,15 +240,15 @@ class UIRoot(UINode):
         PARAMETERS
         ==========
 
-        I{action}
-        ---------
-        The I{action} is one of:
-            - B{list} gives a short session list
-            - B{detail} gives a detailed list
-
-        I{sid}
+        action
         ------
-        You can specify an I{sid} to only list this one,
+        The action is one of:
+            - `list`` gives a short session list
+            - `detail` gives a detailed list
+
+        sid
+        ---
+        You can specify an "sid" to only list this one,
         with or without details.
 
         SEE ALSO
@@ -231,4 +321,3 @@ class UIRoot(UINode):
                 indent_print("(no open sessions)", base_steps)
             else:
                 raise ExecutionError("no session found with sid %i" % int(sid))
-

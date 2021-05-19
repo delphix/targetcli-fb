@@ -46,6 +46,12 @@ class UINode(ConfigNode):
         self.define_config_group_param(
             'global', 'auto_add_default_portal', 'bool',
             'If true, adds a portal listening on all IPs to new targets.')
+        self.define_config_group_param(
+            'global', 'max_backup_files', 'string',
+            'Max no. of configurations to be backed up in /etc/target/backup/ directory.')
+        self.define_config_group_param(
+            'global', 'auto_use_daemon', 'bool',
+            'If true, commands will be sent to targetclid.')
 
     def assert_root(self):
         '''
@@ -92,7 +98,7 @@ class UINode(ConfigNode):
 
         SEE ALSO
         ========
-        B{ls}
+        ls
         '''
         description, is_healthy = self.summary()
         self.shell.log.info("Status for %s: %s" % (self.path, description))

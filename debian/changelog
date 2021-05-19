@@ -1,3 +1,55 @@
+targetcli-fb (1:2.1.51-0ubuntu1) focal; urgency=medium
+
+  [ Rafael David Tinoco ]
+  * New upstream version 2.1.51
+    - Upstream changed their versioning scheme in a way that makes the
+      latest version lower than the previous one therefore we had to add
+      an epoch bump.
+  * debian/watch: fix the watch file for upstream versions without fb.
+
+  [ Christian Ehrhardt ]
+  * This now provides an optional daemon targetclid to be used for
+    operations at scale to retain state between commands in memory.
+    - d/manpages: install targetclid man page
+    - d/rules: install and enable targetclid service and socket
+
+ -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Thu, 27 Feb 2020 02:30:18 +0000
+
+targetcli-fb (2.1.fb49-1) unstable; urgency=medium
+
+  * New upstream version 2.1.fb49
+  * Refresh patch
+  * Fix Vcs URL canonical link
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 02 Aug 2019 20:45:40 +0530
+
+targetcli-fb (2.1.48-1) unstable; urgency=medium
+
+  * d/compat: upgrade debhelper compatibility level to 11
+  * d/control: update standards version to 4.2.1
+  * d/control: depend on rtslib-fb being at least version 2.1.62
+  * d/control: replace DBUS dependency with Python GObject introspection
+  * d/patches: rediff patches
+  * d/patches: remove patches already merged upstream
+  * New upstream version
+
+ -- Christophe Vu-Brugier <cvubrugier@fastmail.fm>  Tue, 28 Aug 2018 22:15:11 +0200
+
+targetcli-fb (2.1.43-2) unstable; urgency=medium
+
+  [ Christian Seiler ]
+  * Make sure old config backup directory exists. (Closes: #858459)
+
+  [ Christophe Vu-Brugier ]
+  * d/watch: fix the watch file to download from GitHub
+  * d/watch: remove "fb" from the version number
+
+  [ Ritesh Raj Sarraf ]
+  * Switch packaging to Salsa
+  * Set maintainer address to tracker (Closes: #899709)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 15 Jun 2018 17:14:27 +0545
+
 targetcli-fb (2.1.43-1) unstable; urgency=medium
 
   [ Christophe Vu-Brugier ]

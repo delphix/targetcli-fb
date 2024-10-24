@@ -1,0 +1,7 @@
+Tests: ramdiskluns.sh
+Restrictions: needs-root, isolation-machine
+Depends: targetcli-fb
+
+Tests: saveconfig.sh
+Restrictions: needs-root, isolation-machine
+Depends: targetcli-fb

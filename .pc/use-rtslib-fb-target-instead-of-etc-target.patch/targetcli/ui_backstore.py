@@ -36,7 +36,7 @@ from rtslib_fb.utils import get_block_type
 
 from .ui_node import UINode, UIRTSLibNode
 
-default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
+default_save_file = "/etc/target/saveconfig.json"
 
 alua_rw_params = ['alua_access_state', 'alua_access_status',
                   'alua_write_metadata', 'alua_access_type', 'preferred',

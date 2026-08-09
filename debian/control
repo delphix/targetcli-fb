@@ -1,20 +1,20 @@
 Source: targetcli-fb
 Section: admin
 Priority: optional
-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
-XSBC-Original-Maintainer: Debian LIO Target Packagers <team+linux-blocks@tracker.debian.org>
+Maintainer: Debian LIO Target Packagers <linux-target-packaging@lists.alioth.debian.org>
 Uploaders: Christophe Vu-Brugier <cvubrugier@fastmail.fm>,
            Ritesh Raj Sarraf <rrs@debian.org>,
            Christian Seiler <christian@iwakd.de>
-Build-Depends: debhelper (>= 11),
-               dh-python,
+Build-Depends: debhelper-compat (= 13),
+               dh-sequence-python3,
+               pybuild-plugin-pyproject,
                python3-all,
                python3-configshell-fb,
-               python3-gi,
-               python3-rtslib-fb (>= 2.1.62),
-               python3-setuptools,
-               python3-six
-Standards-Version: 4.2.1
+               python3-dbus,
+               python3-hatchling,
+               python3-hatch-vcs,
+               python3-rtslib-fb,
+Standards-Version: 4.7.2
 Homepage: https://github.com/open-iscsi/targetcli-fb
 Vcs-Git: https://salsa.debian.org/linux-blocks-team/targetcli-fb.git
 Vcs-Browser: https://salsa.debian.org/linux-blocks-team/targetcli-fb
@@ -24,9 +24,8 @@ Architecture: all
 Depends: ${misc:Depends},
          ${python3:Depends},
          python3-configshell-fb,
-         python3-gi,
-         python3-rtslib-fb (>= 2.1.62),
-         python3-six,
+         python3-dbus,
+         python3-rtslib-fb,
 Conflicts: targetcli, lio-utils
 Description: Command shell for managing the Linux LIO kernel target
  The targetcli-fb package is a command-line interface for configuring

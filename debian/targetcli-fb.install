@@ -1,5 +1,2 @@
-usr/bin/targetclid                              /usr/bin
-usr/bin/targetcli                               /usr/bin
-usr/lib/python3*/dist-packages/targetcli       /usr/lib/python3/dist-packages
-systemd/targetclid.service                      /lib/systemd/system
-systemd/targetclid.socket                       /lib/systemd/system
+systemd/targetclid.service                      /usr/lib/systemd/system
+systemd/targetclid.socket                       /usr/lib/systemd/system

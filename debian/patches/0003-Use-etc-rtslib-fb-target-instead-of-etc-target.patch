@@ -1,0 +1,56 @@
+From: Christian Seiler <christian@iwakd.de>
+Date: Sun, 2 Oct 2016 19:14:17 +0200
+Subject: Use /etc/rtslib-fb-target instead of /etc/target
+
+Debian's python-rtslib-fb package changes /etc/target to
+/etc/rtslib-fb-target. Follow suite for now to make sure that targetcli
+is compatible with the startup logic in python-rtslib-fb and will work
+out of the box.
+---
+ targetcli.8          | 8 ++++----
+ targetcli/ui_root.py | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+--- a/targetcli.8
++++ b/targetcli.8
+@@ -361,7 +361,7 @@
+ Save the current configuration settings to a file, from which settings
+ will be restored if the system is rebooted. By default, this will save
+ the configuration to
+-.IR /etc/target/saveconfig.json .
++.IR /etc/rtslib-fb-target/saveconfig.json .
+ .P
+ This command is executed from the configuration root node.
+ .P
+@@ -421,7 +421,7 @@
+ to change working path to newly-created nodes.  Global settings
+ are user-specific and are saved to ~/.targetcli/ upon exit, unlike
+ other groups, which are system-wide and kept in
+-.BR /etc/target/saveconfig.json .
++.BR /etc/rtslib-fb-target/saveconfig.json .
+ .SS BACKSTORE-SPECIFIC
+ .B attribute
+ .br
+@@ -459,9 +459,9 @@
+ /iscsi/<target_iqn>/tpgX/acls/<initiator_iqn> configuration node. Set
+ the userid and password for full-feature phase for this ACL.
+ .SH FILES
+-.B /etc/target/saveconfig.json
++.B /etc/rtslib-fb-target/saveconfig.json
+ .br
+-.B /etc/target/backup/*
++.B /etc/rtslib-fb-target/backup/*
+ .SH ENVIRONMENT
+ .SS TARGETCLI_HOME
+ If set, this variable points to a directory that should be used instead of ~/.targetcli
+--- a/src/targetcli/ui_root.py
++++ b/src/targetcli/ui_root.py
+@@ -36,7 +36,7 @@
+ from .ui_node import UINode
+ from .ui_target import UIFabricModule
+ 
+-default_target_dir = "/etc/target"
++default_target_dir = "/etc/rtslib-fb-target"
+ default_save_file = os.path.join(default_target_dir, "saveconfig.json")
+ universal_prefs_file = os.path.join(default_target_dir, "targetcli.conf")
+ 

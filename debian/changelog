@@ -1,51 +1,48 @@
-targetcli-fb (1:2.1.53-1ubuntu3) jammy; urgency=medium
+targetcli-fb (1:3.0.1-0.1build1) resolute; urgency=medium
 
-  * No-change rebuild to update maintainer scripts, see LP: 1959054
+  * Rebuild to clear amd64v3 from FTBFS report
 
- -- Dave Jones <dave.jones@canonical.com>  Wed, 16 Feb 2022 17:34:38 +0000
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Thu, 18 Dec 2025 07:58:31 -0500
 
-targetcli-fb (1:2.1.53-1ubuntu2) hirsute; urgency=medium
+targetcli-fb (1:3.0.1-0.1) unstable; urgency=medium
 
-  * Don't hardcode the python minor version
-    Thanks Ritesh Raj Sarraf <rrs@debian.org>
+  * Non-maintainer upload.
+  * Fix d/watch (Closes: #1065604)
+  * New upstream version 3.0.1 (Closes: #1087108, #1065602)
+  * Switch to pybuild-plugin-pyproject
+  * Drop dependency on python3-six
+  * Add d/gbp.conf
+  * Replace python3-setuptools build-dep with python3-hatchling
 
- -- Sergio Durigan Junior <sergio.durigan@canonical.com>  Tue, 26 Jan 2021 16:13:06 -0500
+ -- Alexandre Detiste <tchet@debian.org>  Wed, 01 Oct 2025 10:07:34 +0200
 
-targetcli-fb (1:2.1.53-1ubuntu1) groovy; urgency=medium
 
-  * New upstream version 2.1.53
-  * Dropped changes (no more needed):
-    - d/manpages: install targetclid man page
-    - d/rules: install and enable targetclid service and socket
+targetcli-fb (1:2.1.53-1.2) unstable; urgency=medium
 
- -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Sat, 25 Jul 2020 05:28:40 +0000
+  * Non-maintainer upload.
+  * Install systemd units into /usr.
+
+ -- Chris Hofstaedtler <zeha@debian.org>  Sat, 25 May 2024 10:20:10 +0200
+
+targetcli-fb (1:2.1.53-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * No source change upload to rebuild with debhelper 13.10.
+
+ -- Michael Biebl <biebl@debian.org>  Sat, 15 Oct 2022 12:51:47 +0200
 
 targetcli-fb (1:2.1.53-1) unstable; urgency=medium
 
-  * Non-maintainer upload.
+  [ Ritesh Raj Sarraf ]
+  * Don't hardcode the python minor version
+
+  [ Rafael David Tinoco ]
   * New upstream version 2.1.53
   * No more "fb" in versioning: requires epoch bump
   * d/rules: adjust rules for build, install, man, docs and systemd
   * Add basic DEP8 coverage
 
- -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Wed, 24 Jun 2020 19:45:38 +0000
-
-targetcli-fb (1:2.1.51-0ubuntu1) focal; urgency=medium
-
-  [ Rafael David Tinoco ]
-  * New upstream version 2.1.51
-    - Upstream changed their versioning scheme in a way that makes the
-      latest version lower than the previous one therefore we had to add
-      an epoch bump.
-  * debian/watch: fix the watch file for upstream versions without fb.
-
-  [ Christian Ehrhardt ]
-  * This now provides an optional daemon targetclid to be used for
-    operations at scale to retain state between commands in memory.
-    - d/manpages: install targetclid man page
-    - d/rules: install and enable targetclid service and socket
-
- -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Thu, 27 Feb 2020 02:30:18 +0000
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 22 Jan 2021 20:59:16 +0530
 
 targetcli-fb (2.1.fb49-1) unstable; urgency=medium
 
